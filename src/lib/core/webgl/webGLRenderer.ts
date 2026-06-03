@@ -7,7 +7,7 @@ import { degToRad } from "../math/angle";
 import { Vec3 } from "../math/vec3";
 import Object from "../object";
 import Scene from "../scene";
-import Camera from "../camera";
+import { BaseCamera, OrbitCamera } from "../camera/index";
 import Inputs from "../inputs";
 import DirectionalLighting from "../directionalLighting";
 import Environment from "../environment";
@@ -41,7 +41,7 @@ class WebGLRenderer {
   private canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
   private toDrawObjects:ToDrawObject[] = [];
-  private camera:Camera;
+  private camera:BaseCamera;
   private inputs:Inputs;
   private environment:Environment;
   private buffersAndAttributes:BuffersAndAttributes;
@@ -52,7 +52,7 @@ class WebGLRenderer {
     this.canvas = canvas;
     //
     this.toDrawObjects = [];
-    this.camera = new Camera(new Vec3([0, 10, 0]), "camera");
+    this.camera = new OrbitCamera(new Vec3([0, 10, 0]), "camera");
     this.inputs = new Inputs(this.canvas);
     this.buffersAndAttributes = new BuffersAndAttributes();
     this.createInputs();
@@ -104,21 +104,15 @@ class WebGLRenderer {
   private createInputs() {
 
     const move = (position: Vec3) => {
-      // this.camera.localPosition.x += position.x;
-      // this.camera.localPosition.y += position.y;
-      // this.camera.localPosition.z += position.z;
+      this.camera.onMove(position);
     };
 
     const zoom = (delta: number) => {
-      this.camera.cameraDistance += delta;
-      if (this.camera.cameraDistance < 0.0) this.camera.cameraDistance = 0.0;
+      this.camera.onZoom(delta);
     };
 
     const rotate = (dx:number, dy: number) => {
-      // this.camera.localRotation.x += (dx/100);
-      // this.camera.localRotation.y += (dy/100);
-      this.camera.yaw   -= (dx/100);
-      this.camera.pitch += (dy/100);
+      this.camera.onRotate(dx, dy);
     } 
 
     this.inputs.listen(zoom, move, rotate);
@@ -156,15 +150,7 @@ class WebGLRenderer {
     this.resizeCanvasToDisplaySize(gl.canvas, 1);
 
     // view Matrix
-    this.camera.pitch = Math.max(-Math.PI/2 + 0.1, Math.min(Math.PI/2 - 0.1, this.camera.pitch));
-    let radius = this.camera.cameraDistance;
-    let eye = new Vec3([
-      this.camera.localPosition.x + radius * Math.cos(this.camera.pitch) * Math.sin(this.camera.yaw),
-      this.camera.localPosition.y + radius * Math.sin(this.camera.pitch),
-      this.camera.localPosition.z + radius * Math.cos(this.camera.pitch) * Math.cos(this.camera.yaw)
-    ]);
-    let up = new Vec3([0, 1, 0]);
-    let viewMatrix = Mat4.lookAt(eye, new Vec3([0, 0, 0]), up);
+    let viewMatrix = this.camera.getViewMatrix();
 
     // projectionMatrix
     let projectionMatrix:Mat4 = new Mat4().setIdentity();
